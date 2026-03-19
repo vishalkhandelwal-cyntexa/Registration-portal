@@ -1,0 +1,1444 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>New Lead — CRM Portal</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsforce@3.2.2/dist/jsforce.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #f4f5f9;
+        --surface: #ffffff;
+        --surface2: #f0f1f6;
+        --border: rgba(0,0,0,0.08);
+        --border-focus: rgba(99,102,241,0.5);
+        --accent: #6366f1;
+        --accent2: #7c3aed;
+        --accent-glow: rgba(99,102,241,0.15);
+        --text: #111827;
+        --text-muted: #6b7280;
+        --text-dim: #9ca3af;
+        --success: #059669;
+        --error: #dc2626;
+        --step-done: #059669;
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: 'DM Sans', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        overflow-x: hidden;
+      }
+
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 80% 60% at 20% -10%, rgba(99,102,241,0.08) 0%, transparent 60%),
+          radial-gradient(ellipse 60% 50% at 80% 110%, rgba(124,58,237,0.06) 0%, transparent 60%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      body::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+        background-size: 60px 60px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 680px;
+      }
+
+      .header {
+        margin-bottom: 32px;
+        animation: fadeDown 0.6s ease both;
+      }
+      .header-eyebrow {
+        font-family: 'Syne', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .header-eyebrow::before {
+        content: '';
+        display: inline-block;
+        width: 24px;
+        height: 1px;
+        background: var(--accent);
+      }
+      .header h1 {
+        font-family: 'Syne', sans-serif;
+        font-size: 40px;
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        color: var(--text);
+      }
+      .header h1 span {
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .header p {
+        margin-top: 10px;
+        color: var(--text-muted);
+        font-size: 14px;
+        font-weight: 300;
+      }
+
+      .stepper {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        margin-bottom: 32px;
+        animation: fadeDown 0.6s 0.1s ease both;
+      }
+      .step-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        position: relative;
+      }
+      .step-item:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: calc(50% + 16px);
+        right: calc(-50% + 16px);
+        height: 1px;
+        background: var(--border);
+        transition: background 0.4s ease;
+      }
+      .step-item.done:not(:last-child)::after { background: var(--step-done); }
+      .step-item.active:not(:last-child)::after { background: linear-gradient(90deg, var(--accent), var(--border)); }
+      .step-dot {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1.5px solid var(--border);
+        background: var(--surface);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Syne', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text-dim);
+        transition: all 0.3s ease;
+        position: relative;
+        z-index: 1;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      }
+      .step-item.active .step-dot {
+        border-color: var(--accent);
+        color: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+        background: rgba(99,102,241,0.06);
+      }
+      .step-item.done .step-dot {
+        border-color: var(--step-done);
+        background: rgba(5,150,105,0.08);
+        color: var(--step-done);
+      }
+      .step-label {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        white-space: nowrap;
+        transition: color 0.3s ease;
+      }
+      .step-item.active .step-label { color: var(--accent); }
+      .step-item.done .step-label { color: var(--step-done); }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 40px;
+        position: relative;
+        overflow: hidden;
+        animation: fadeUp 0.6s 0.2s ease both;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+      }
+      .card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+        opacity: 0.6;
+      }
+
+      .step-panel { display: none; animation: fadeIn 0.35s ease; }
+      .step-panel.active { display: block; }
+
+      .step-title {
+        font-family: 'Syne', sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+      .step-subtitle {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 28px;
+      }
+
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+      .col-span-2 { grid-column: span 2; }
+      .col-span-3 { grid-column: span 3; }
+
+      .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+      label {
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+      label .required { color: var(--accent2); margin-left: 2px; }
+
+      input, select, textarea {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 11px 14px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 14px;
+        color: var(--text);
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        width: 100%;
+        -webkit-appearance: none;
+      }
+      input::placeholder, textarea::placeholder { color: var(--text-dim); font-weight: 300; }
+      input:focus, select:focus, textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+        background: #fff;
+      }
+      select {
+        cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        padding-right: 36px;
+      }
+      select option { background: #fff; color: var(--text); }
+      textarea { resize: vertical; min-height: 88px; line-height: 1.6; }
+
+      .input-wrap { position: relative; }
+      .input-wrap input { padding-left: 40px; }
+      .input-icon {
+        position: absolute;
+        left: 13px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-dim);
+        display: flex;
+        align-items: center;
+        pointer-events: none;
+      }
+
+      .section-gap { margin-top: 24px; }
+
+      .nav-row {
+        display: flex;
+        gap: 12px;
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+      }
+
+      .btn {
+        font-family: 'Syne', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: 12px 24px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .btn-back {
+        background: var(--surface2);
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        flex: 0 0 auto;
+        min-width: 100px;
+      }
+      .btn-back:hover { background: #e8e9f0; color: var(--text); border-color: rgba(0,0,0,0.14); }
+      .btn-next {
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+        color: white;
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+      .btn-next::before {
+        content: ''; position: absolute; inset: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+        opacity: 0; transition: opacity 0.2s ease;
+      }
+      .btn-next:hover::before { opacity: 1; }
+      .btn-next:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99,102,241,0.35); }
+      .btn-next:active { transform: translateY(0); }
+      .btn-submit {
+        background: linear-gradient(135deg, var(--success) 0%, #10b981 100%);
+        color: white; flex: 1; position: relative; overflow: hidden;
+      }
+      .btn-submit::before {
+        content: ''; position: absolute; inset: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+        opacity: 0; transition: opacity 0.2s ease;
+      }
+      .btn-submit:hover::before { opacity: 1; }
+      .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(5,150,105,0.35); }
+      .btn-submit:active { transform: translateY(0); }
+      .btn-submit:disabled, .btn-next:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+      .toast {
+        position: fixed;
+        bottom: 28px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        color: var(--text);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+        opacity: 0;
+        transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+        z-index: 100;
+        white-space: nowrap;
+      }
+      .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+      .toast.success .toast-icon { color: var(--success); }
+      .toast.error .toast-icon { color: var(--error); }
+      .toast-icon { font-size: 18px; }
+
+      .success-screen { text-align: center; padding: 20px 0 10px; }
+      .success-screen .icon-circle {
+        width: 72px; height: 72px;
+        background: rgba(5,150,105,0.08);
+        border: 1.5px solid rgba(5,150,105,0.3);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 20px;
+        animation: scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+        font-size: 28px;
+      }
+      .success-screen h3 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+      .success-screen p { color: var(--text-muted); font-size: 14px; margin-bottom: 6px; }
+      .lead-id-badge {
+        display: inline-block;
+        background: rgba(99,102,241,0.07);
+        border: 1px solid rgba(99,102,241,0.2);
+        border-radius: 8px;
+        padding: 6px 14px;
+        font-family: 'Syne', sans-serif;
+        font-size: 13px;
+        color: var(--accent);
+        margin: 10px 0 0;
+        letter-spacing: 0.05em;
+      }
+      .btn-reset {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 12px 28px;
+        font-family: 'Syne', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .btn-reset:hover { background: #e8e9f0; border-color: rgba(0,0,0,0.14); }
+
+      /* ── FILE UPLOAD STYLES ── */
+      .upload-section { margin-top: 4px; }
+
+      .upload-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 24px 0 16px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+      .upload-divider::before, .upload-divider::after {
+        content: ''; flex: 1; height: 1px; background: var(--border);
+      }
+
+      .drop-zone {
+        border: 1.5px dashed rgba(99,102,241,0.35);
+        border-radius: 14px;
+        background: rgba(99,102,241,0.03);
+        padding: 28px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .drop-zone:hover, .drop-zone.drag-over {
+        border-color: var(--accent);
+        background: rgba(99,102,241,0.06);
+      }
+      .drop-icon { color: var(--accent); margin-bottom: 10px; opacity: 0.7; }
+      .drop-text { font-size: 14px; color: var(--text-muted); margin-bottom: 4px; }
+      .drop-link { color: var(--accent2); font-weight: 500; text-decoration: underline dotted; }
+      .drop-hint { font-size: 11px; color: var(--text-dim); }
+
+      .file-list { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+      .file-item {
+        display: flex; align-items: center; gap: 12px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 14px;
+        transition: border-color 0.2s;
+      }
+      .file-item.uploading { border-color: rgba(99,102,241,0.4); }
+      .file-item.done      { border-color: rgba(5,150,105,0.4); }
+      .file-item.error     { border-color: rgba(220,38,38,0.4); }
+
+      .file-icon {
+        width: 34px; height: 34px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 700;
+        font-family: 'Syne', sans-serif; letter-spacing: 0.02em; flex-shrink: 0;
+      }
+      .file-icon.pdf  { background: rgba(239,68,68,0.1);   color: #dc2626; }
+      .file-icon.doc  { background: rgba(59,130,246,0.1);  color: #2563eb; }
+      .file-icon.xls  { background: rgba(5,150,105,0.1);   color: #059669; }
+      .file-icon.img  { background: rgba(124,58,237,0.1);  color: var(--accent2); }
+      .file-icon.other{ background: rgba(0,0,0,0.05);      color: var(--text-muted); }
+
+      .file-info { flex: 1; min-width: 0; }
+      .file-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .file-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+      .progress-bar-wrap { height: 2px; background: rgba(99,102,241,0.12); border-radius: 2px; margin-top: 5px; overflow: hidden; }
+      .progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; width: 0%; transition: width 0.4s ease; }
+
+      .file-status { font-size: 12px; font-weight: 600; font-family: 'Syne', sans-serif; flex-shrink: 0; }
+      .file-status.pending   { color: var(--text-dim); }
+      .file-status.uploading { color: var(--accent); }
+      .file-status.done      { color: var(--success); }
+      .file-status.error     { color: var(--error); }
+
+      .file-remove {
+        background: none; border: none; color: var(--text-dim); cursor: pointer;
+        padding: 4px; border-radius: 4px; display: flex; align-items: center; transition: color 0.15s; flex-shrink: 0;
+      }
+      .file-remove:hover { color: var(--error); }
+
+      .btn-upload {
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+        color: white; width: 100%; margin-top: 12px;
+        position: relative; overflow: hidden;
+      }
+      .btn-upload::before {
+        content: ''; position: absolute; inset: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+        opacity: 0; transition: opacity 0.2s;
+      }
+      .btn-upload:hover::before { opacity: 1; }
+      .btn-upload:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99,102,241,0.35); }
+      .btn-upload:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+      .reset-row { text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+
+      /* ── AGREEMENT CHECKBOXES ── */
+      .agreements-section {
+        margin-top: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .agreement-block {
+        background: var(--surface2);
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+      }
+      .agreement-block.checked {
+        border-color: rgba(5,150,105,0.45);
+        background: rgba(5,150,105,0.025);
+      }
+      .agreement-block.error-highlight {
+        border-color: rgba(220,38,38,0.5);
+        box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
+      }
+
+      .agreement-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 13px;
+        padding: 15px 16px;
+      }
+
+      /* custom checkbox */
+      .custom-checkbox {
+        position: relative;
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        margin-top: 1px;
+        cursor: pointer;
+      }
+      .custom-checkbox input[type="checkbox"] {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        cursor: pointer;
+        z-index: 2;
+        border-radius: 0;
+        background: none;
+        border: none;
+        padding: 0;
+        box-shadow: none;
+        -webkit-appearance: none;
+      }
+      .custom-checkbox input[type="checkbox"]:focus + .checkbox-box {
+        box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+      .checkbox-box {
+        position: absolute;
+        inset: 0;
+        border-radius: 6px;
+        border: 1.5px solid #c4c9d4;
+        background: #fff;
+        transition: all 0.18s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .custom-checkbox input[type="checkbox"]:checked + .checkbox-box {
+        background: var(--success);
+        border-color: var(--success);
+      }
+      .checkbox-tick {
+        opacity: 0;
+        transform: scale(0.4);
+        transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+        color: white;
+      }
+      .custom-checkbox input[type="checkbox"]:checked + .checkbox-box .checkbox-tick {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .agreement-label-wrap { flex: 1; min-width: 0; }
+
+      .agreement-label {
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--text);
+        line-height: 1.45;
+        cursor: pointer;
+        display: block;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+      .agreement-label .req-star {
+        color: var(--error);
+        margin-left: 2px;
+        font-size: 15px;
+        line-height: 1;
+      }
+      .agreement-sub {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 3px;
+        font-weight: 300;
+      }
+
+      .tc-toggle {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--accent);
+        font-family: 'Syne', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 0;
+        margin-top: 8px;
+        transition: color 0.15s ease;
+      }
+      .tc-toggle:hover { color: var(--accent2); }
+      .tc-toggle .tc-arrow {
+        transition: transform 0.25s ease;
+        flex-shrink: 0;
+      }
+      .tc-toggle.open .tc-arrow { transform: rotate(180deg); }
+
+      .tc-body {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.28s ease;
+        opacity: 0;
+      }
+      .tc-body.open {
+        max-height: 450px;
+        opacity: 1;
+      }
+
+      .tc-content {
+        border-top: 1px solid var(--border);
+        padding: 16px 16px 14px;
+      }
+      .tc-scroll {
+        max-height: 200px;
+        overflow-y: auto;
+        padding-right: 6px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(99,102,241,0.25) transparent;
+      }
+      .tc-scroll::-webkit-scrollbar { width: 4px; }
+      .tc-scroll::-webkit-scrollbar-track { background: transparent; }
+      .tc-scroll::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius: 4px; }
+
+      .tc-content h4 {
+        font-family: 'Syne', sans-serif;
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--text);
+        margin-bottom: 5px;
+        margin-top: 14px;
+      }
+      .tc-content h4:first-child { margin-top: 0; }
+      .tc-content p {
+        font-size: 12.5px;
+        color: var(--text-muted);
+        line-height: 1.68;
+        font-weight: 300;
+      }
+
+      .tc-collapse-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        margin-top: 12px;
+        background: none;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        color: var(--text-dim);
+        font-family: 'Syne', sans-serif;
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 7px 14px;
+        border-radius: 7px;
+        width: 100%;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+      }
+      .tc-collapse-btn:hover { background: rgba(0,0,0,0.04); color: var(--text-muted); border-color: rgba(0,0,0,0.14); }
+      /* ── END AGREEMENT STYLES ── */
+
+      @keyframes fadeDown { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes fadeUp   { from { opacity: 0; transform: translateY(16px);  } to { opacity: 1; transform: translateY(0); } }
+      @keyframes fadeIn   { from { opacity: 0; transform: translateX(10px);  } to { opacity: 1; transform: translateX(0); } }
+      @keyframes scaleIn  { from { opacity: 0; transform: scale(0.5); }        to { opacity: 1; transform: scale(1); } }
+
+      @media (max-width: 600px) {
+        .card { padding: 24px; }
+        .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        .col-span-2, .col-span-3 { grid-column: span 1; }
+        .header h1 { font-size: 28px; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="container">
+
+      <div class="header">
+        <div class="header-eyebrow">Salesforce CRM</div>
+        <h1>Register New <span>Customer</span></h1>
+        <p>Fill in the details below to register a new customer into the system.</p>
+      </div>
+
+      <div class="stepper" id="stepper">
+        <div class="step-item active" id="s1">
+          <div class="step-dot">1</div>
+          <span class="step-label">Identity</span>
+        </div>
+        <div class="step-item" id="s2">
+          <div class="step-dot">2</div>
+          <span class="step-label">Contact</span>
+        </div>
+        <div class="step-item" id="s3">
+          <div class="step-dot">3</div>
+          <span class="step-label">Details</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <form id="leadForm" novalidate>
+
+          <!-- STEP 1 -->
+          <div class="step-panel active" id="panel1">
+            <div class="step-title">Personal Identity</div>
+            <div class="step-subtitle">Start with the lead's basic personal information.</div>
+            <div class="grid-2">
+              <div class="field">
+                <label>First Name</label>
+                <input type="text" id="firstName" placeholder="John" />
+              </div>
+              <div class="field">
+                <label>Last Name <span class="required">*</span></label>
+                <input type="text" id="lastName" placeholder="Doe" required />
+              </div>
+            </div>
+            <div class="section-gap">
+              <div class="grid-2">
+                <div class="field">
+                  <label>Lead Source</label>
+                  <select id="source">
+                    <option value="">— Select source —</option>
+                    <option value="Website">Website</option>
+                    <option value="Phone Inquiry">Phone Inquiry</option>
+                    <option value="Partner Referral">Partner Referral</option>
+                    <option value="Purchased List">Purchased List</option>
+                    <option value="Web">Web</option>
+                    <option value="Twilio">Twilio</option>
+                    <option value="Trade Show">Trade Show</option>
+                    <option value="Internal">Internal</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Industry</label>
+                  <select id="industry">
+                    <option value="">— Select industry —</option>
+                    <option value="Agriculture">Agriculture</option>
+                    <option value="Apparel">Apparel</option>
+                    <option value="Banking">Banking</option>
+                    <option value="Biotechnology">Biotechnology</option>
+                    <option value="Chemicals">Chemicals</option>
+                    <option value="Communications">Communications</option>
+                    <option value="Construction">Construction</option>
+                    <option value="Consulting">Consulting</option>
+                    <option value="Education">Education</option>
+                    <option value="Electronics">Electronics</option>
+                    <option value="Energy">Energy</option>
+                    <option value="Engineering">Engineering</option>
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Environmental">Environmental</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Food &amp; Beverage">Food &amp; Beverage</option>
+                    <option value="Government">Government</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Hospitality">Hospitality</option>
+                    <option value="Insurance">Insurance</option>
+                    <option value="Machinery">Machinery</option>
+                    <option value="Manufacturing">Manufacturing</option>
+                    <option value="Media">Media</option>
+                    <option value="Not For Profit">Not For Profit</option>
+                    <option value="Other">Other</option>
+                    <option value="Recreation">Recreation</option>
+                    <option value="Retail">Retail</option>
+                    <option value="Shipping">Shipping</option>
+                    <option value="Technology">Technology</option>
+                    <option value="Telecommunications">Telecommunications</option>
+                    <option value="Transportation">Transportation</option>
+                    <option value="Utilities">Utilities</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="nav-row">
+              <button type="button" class="btn btn-next" onclick="goTo(2)">
+                Continue — Contact Info
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- STEP 2 -->
+          <div class="step-panel" id="panel2">
+            <div class="step-title">Contact Information</div>
+            <div class="step-subtitle">How can we reach this lead?</div>
+            <div class="field">
+              <label>Company <span class="required">*</span></label>
+              <div class="input-wrap">
+                <span class="input-icon">
+                  <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                </span>
+                <input type="text" id="company" placeholder="Acme Corporation" required />
+              </div>
+            </div>
+            <div class="section-gap grid-2">
+              <div class="field">
+                <label>Email Address</label>
+                <div class="input-wrap">
+                  <span class="input-icon">
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                  </span>
+                  <input type="email" id="email" placeholder="john@acme.com" />
+                </div>
+              </div>
+              <div class="field">
+                <label>Website</label>
+                <div class="input-wrap">
+                  <span class="input-icon">
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+                  </span>
+                  <input type="url" id="website" placeholder="https://acme.com" />
+                </div>
+              </div>
+            </div>
+            <div class="section-gap grid-2">
+              <div class="field">
+                <label>Phone</label>
+                <div class="input-wrap">
+                  <span class="input-icon">
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                  </span>
+                  <input type="tel" id="phone" placeholder="+1 (555) 000-0000" />
+                </div>
+              </div>
+              <div class="field">
+                <label>Mobile</label>
+                <div class="input-wrap">
+                  <span class="input-icon">
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                  </span>
+                  <input type="tel" id="mobile" placeholder="+1 (555) 000-0001" />
+                </div>
+              </div>
+            </div>
+            <div class="nav-row">
+              <button type="button" class="btn btn-back" onclick="goTo(1)">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                Back
+              </button>
+              <button type="button" class="btn btn-next" onclick="goTo(3)">
+                Continue — Location
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- STEP 3 -->
+          <div class="step-panel" id="panel3">
+            <div class="step-title">Location &amp; Notes</div>
+            <div class="step-subtitle">Add location details and any additional context.</div>
+            <div class="grid-2">
+              <div class="field">
+                <label>City</label>
+                <div class="input-wrap">
+                  <span class="input-icon">
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  </span>
+                  <input type="text" id="city" placeholder="San Francisco" />
+                </div>
+              </div>
+              <div class="field">
+                <label>Country</label>
+                <select id="country">
+                  <option value="">— Select country —</option>
+                  <option value="United States">United States</option>
+                  <option value="United Kingdom">United Kingdom</option>
+                  <option value="Canada">Canada</option>
+                  <option value="Australia">Australia</option>
+                  <option value="Germany">Germany</option>
+                  <option value="France">France</option>
+                  <option value="India">India</option>
+                  <option value="Japan">Japan</option>
+                  <option value="China">China</option>
+                  <option value="Brazil">Brazil</option>
+                  <option value="Mexico">Mexico</option>
+                  <option value="South Korea">South Korea</option>
+                  <option value="Italy">Italy</option>
+                  <option value="Spain">Spain</option>
+                  <option value="Netherlands">Netherlands</option>
+                  <option value="Singapore">Singapore</option>
+                  <option value="United Arab Emirates">United Arab Emirates</option>
+                  <option value="Saudi Arabia">Saudi Arabia</option>
+                  <option value="South Africa">South Africa</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="section-gap field">
+              <label>Description / Notes</label>
+              <textarea id="description" placeholder="Add any additional context, background info, or notes about this lead..."></textarea>
+            </div>
+
+            <!-- ── AGREEMENTS ── -->
+            <div class="agreements-section">
+
+              <!-- Agreement 1: Website Usage -->
+              <div class="agreement-block" id="agreeBlock1">
+                <div class="agreement-header">
+                  <label class="custom-checkbox" for="agreeWebsite">
+                    <input type="checkbox" id="agreeWebsite" onchange="onAgreementChange(1)" />
+                    <span class="checkbox-box">
+                      <svg class="checkbox-tick" width="11" height="11" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </span>
+                  </label>
+                  <div class="agreement-label-wrap">
+                    <label class="agreement-label" for="agreeWebsite">
+                      I accept the Website Usage Agreement<span class="req-star">*</span>
+                    </label>
+                    <div class="agreement-sub">You must agree to the website usage policy to continue.</div>
+                    <button type="button" class="tc-toggle" id="tcToggle1" onclick="toggleTC(1)">
+                      <svg class="tc-arrow" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                      View Terms &amp; Conditions
+                    </button>
+                  </div>
+                </div>
+                <div class="tc-body" id="tcBody1">
+                  <div class="tc-content">
+                    <div class="tc-scroll">
+                      <h4>1. Acceptance of Terms</h4>
+                      <p>By accessing or using our website, you acknowledge that you have read, understood, and agree to be bound by these Website Usage Agreement terms. If you do not agree, you must discontinue use of this website immediately.</p>
+                      <h4>2. Permitted Use</h4>
+                      <p>This website is provided for lawful purposes only. You agree not to use the website to transmit, distribute, store, or destroy material that violates applicable law, or in any manner that could damage, disable, or impair the website or interfere with any other party's use of the website.</p>
+                      <h4>3. Intellectual Property</h4>
+                      <p>All content on this website — including but not limited to text, graphics, logos, icons, images, and software — is the property of the Company and is protected by applicable intellectual property laws. Unauthorized reproduction or redistribution is strictly prohibited.</p>
+                      <h4>4. Disclaimer of Warranties</h4>
+                      <p>The website is provided "as is" without any warranties of any kind, either express or implied. The Company does not warrant that the website will be error-free, uninterrupted, or free of viruses or other harmful components.</p>
+                      <h4>5. Limitation of Liability</h4>
+                      <p>To the fullest extent permitted by law, the Company shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or in connection with your use of the website.</p>
+                      <h4>6. Governing Law</h4>
+                      <p>These terms shall be governed by and construed in accordance with the laws of the applicable jurisdiction. Any disputes arising hereunder shall be subject to the exclusive jurisdiction of the competent courts.</p>
+                    </div>
+                    <button type="button" class="tc-collapse-btn" onclick="toggleTC(1)">
+                      <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                      Collapse Terms
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Agreement 2: Service Usage -->
+              <div class="agreement-block" id="agreeBlock2">
+                <div class="agreement-header">
+                  <label class="custom-checkbox" for="agreeService">
+                    <input type="checkbox" id="agreeService" onchange="onAgreementChange(2)" />
+                    <span class="checkbox-box">
+                      <svg class="checkbox-tick" width="11" height="11" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </span>
+                  </label>
+                  <div class="agreement-label-wrap">
+                    <label class="agreement-label" for="agreeService">
+                      I accept the Service Usage Agreement<span class="req-star">*</span>
+                    </label>
+                    <div class="agreement-sub">You must agree to the service terms to register a lead.</div>
+                    <button type="button" class="tc-toggle" id="tcToggle2" onclick="toggleTC(2)">
+                      <svg class="tc-arrow" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                      View Terms &amp; Conditions
+                    </button>
+                  </div>
+                </div>
+                <div class="tc-body" id="tcBody2">
+                  <div class="tc-content">
+                    <div class="tc-scroll">
+                      <h4>1. Service Description</h4>
+                      <p>The Company provides a CRM-integrated lead registration service that enables authorized users to submit and manage customer lead data within a Salesforce-connected environment. Use of this service constitutes your agreement to these terms.</p>
+                      <h4>2. Data Accuracy &amp; Responsibility</h4>
+                      <p>You are solely responsible for ensuring that all lead data submitted through this service is accurate, complete, and lawfully obtained. Submission of false, misleading, or unauthorized data is strictly prohibited and may result in immediate suspension of access.</p>
+                      <h4>3. Data Privacy &amp; Confidentiality</h4>
+                      <p>All lead data entered into this system is subject to our Privacy Policy. You agree not to submit sensitive personal data beyond what is required for lead registration, and to handle any data you access through this service in compliance with applicable data protection regulations including GDPR and CCPA where applicable.</p>
+                      <h4>4. Authorized Access Only</h4>
+                      <p>This service is intended for authorized business users only. You agree not to share your access credentials or permit unauthorized individuals to use this service on your behalf. The Company reserves the right to revoke access at any time for violation of these terms.</p>
+                      <h4>5. Service Modifications</h4>
+                      <p>The Company reserves the right to modify, suspend, or discontinue this service at any time with or without notice. The Company shall not be liable to you or any third party for any modification, suspension, or discontinuation of the service.</p>
+                      <h4>6. Indemnification</h4>
+                      <p>You agree to indemnify, defend, and hold harmless the Company and its affiliates, officers, directors, employees, and agents from and against any claims, liabilities, damages, losses, and expenses arising out of or in any way connected with your use of this service or violation of these terms.</p>
+                    </div>
+                    <button type="button" class="tc-collapse-btn" onclick="toggleTC(2)">
+                      <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                      Collapse Terms
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            <!-- ── END AGREEMENTS ── -->
+
+            <div class="nav-row">
+              <button type="button" class="btn btn-back" onclick="goTo(2)">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                Back
+              </button>
+              <button type="submit" class="btn btn-submit" id="submitBtn">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Create Lead in Salesforce
+              </button>
+            </div>
+          </div>
+
+          <!-- SUCCESS + FILE UPLOAD -->
+          <div class="step-panel" id="panelSuccess">
+
+            <div class="success-screen">
+              <div class="icon-circle">✓</div>
+              <h3>Lead Created!</h3>
+              <p>The lead has been successfully registered in Salesforce.</p>
+              <div class="lead-id-badge" id="leadIdBadge">ID: —</div>
+            </div>
+
+            <div class="upload-section">
+              <div class="upload-divider"><span>Attach Documents to this Lead</span></div>
+
+              <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <div class="drop-icon">
+                  <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+                  </svg>
+                </div>
+                <div class="drop-text">Drop files here or <span class="drop-link">browse</span></div>
+                <div class="drop-hint">PDF, DOC, DOCX, XLS, XLSX, PNG, JPG — up to 25MB each</div>
+                <input type="file" id="fileInput" multiple
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.csv"
+                  style="display:none" onchange="handleFiles(this.files)" />
+              </div>
+
+              <div class="file-list" id="fileList"></div>
+
+              <button type="button" class="btn btn-upload" id="uploadBtn" onclick="uploadAllFiles()" style="display:none">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+                </svg>
+                Upload All Files to Salesforce
+              </button>
+            </div>
+
+            <div class="reset-row">
+              <button type="button" class="btn-reset" onclick="resetForm()">Create Another Lead</button>
+            </div>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+    <div class="toast" id="toast">
+      <span class="toast-icon" id="toastIcon"></span>
+      <span id="toastMsg"></span>
+    </div>
+
+    <script>
+      let currentStep = 1;
+
+      function goTo(step) {
+        if (step > currentStep && !validateStep(currentStep)) return;
+        document.getElementById('panel' + currentStep).classList.remove('active');
+        document.getElementById('s' + currentStep).classList.remove('active');
+        document.getElementById('s' + currentStep).classList.add('done');
+        currentStep = step;
+        document.getElementById('panel' + currentStep).classList.add('active');
+        document.getElementById('s' + currentStep).classList.add('active');
+        document.getElementById('s' + currentStep).classList.remove('done');
+      }
+
+      function validateStep(step) {
+        if (step === 1) {
+          const lastName = document.getElementById('lastName').value.trim();
+          if (!lastName) { showToast('error', 'Last name is required.'); shake('lastName'); return false; }
+        }
+        if (step === 2) {
+          const company = document.getElementById('company').value.trim();
+          if (!company) { showToast('error', 'Company name is required.'); shake('company'); return false; }
+          const email = document.getElementById('email').value.trim();
+          if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            showToast('error', 'Please enter a valid email address.'); shake('email'); return false;
+          }
+        }
+        return true;
+      }
+
+      function shake(id) {
+        const el = document.getElementById(id);
+        el.style.borderColor = 'var(--error)';
+        el.style.boxShadow = '0 0 0 3px rgba(220,38,38,0.15)';
+        setTimeout(() => { el.style.borderColor = ''; el.style.boxShadow = ''; }, 1800);
+      }
+
+      function showToast(type, msg) {
+        const t = document.getElementById('toast');
+        document.getElementById('toastMsg').textContent = msg;
+        document.getElementById('toastIcon').textContent = type === 'success' ? '✓' : '✕';
+        t.className = 'toast ' + type;
+        t.classList.add('show');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.classList.remove('show'), 3500);
+      }
+
+      function resetForm() {
+        document.getElementById('leadForm').reset();
+        document.getElementById('panelSuccess').classList.remove('active');
+        ['s1','s2','s3'].forEach(id => document.getElementById(id).classList.remove('active','done'));
+        currentStep = 1;
+        document.getElementById('panel1').classList.add('active');
+        document.getElementById('s1').classList.add('active');
+        fileQueue = [];
+        document.getElementById('fileList').innerHTML = '';
+        document.getElementById('uploadBtn').style.display = 'none';
+        window._createdLeadId = null;
+        // reset agreement UI
+        document.getElementById('agreeBlock1').classList.remove('checked','error-highlight');
+        document.getElementById('agreeBlock2').classList.remove('checked','error-highlight');
+        closeTC(1);
+        closeTC(2);
+      }
+
+      // ── AGREEMENT LOGIC ──
+      function onAgreementChange(n) {
+        const cbId  = n === 1 ? 'agreeWebsite' : 'agreeService';
+        const block = document.getElementById('agreeBlock' + n);
+        block.classList.remove('error-highlight');
+        if (document.getElementById(cbId).checked) {
+          block.classList.add('checked');
+        } else {
+          block.classList.remove('checked');
+        }
+      }
+
+      function toggleTC(n) {
+        const body   = document.getElementById('tcBody' + n);
+        const toggle = document.getElementById('tcToggle' + n);
+        const isOpen = body.classList.contains('open');
+        if (isOpen) {
+          closeTC(n);
+        } else {
+          body.classList.add('open');
+          toggle.classList.add('open');
+          // update button text (last text node)
+          setToggleText(toggle, 'Hide Terms & Conditions');
+        }
+      }
+
+      function closeTC(n) {
+        const body   = document.getElementById('tcBody' + n);
+        const toggle = document.getElementById('tcToggle' + n);
+        if (!body || !toggle) return;
+        body.classList.remove('open');
+        toggle.classList.remove('open');
+        setToggleText(toggle, 'View Terms & Conditions');
+      }
+
+      function setToggleText(btn, text) {
+        // find and update the text node inside the button (after the svg)
+        for (const node of btn.childNodes) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            node.textContent = ' ' + text;
+            return;
+          }
+        }
+      }
+
+      function validateAgreements() {
+        const w = document.getElementById('agreeWebsite').checked;
+        const s = document.getElementById('agreeService').checked;
+        if (!w) {
+          document.getElementById('agreeBlock1').classList.add('error-highlight');
+          showToast('error', 'Please accept the Website Usage Agreement to continue.');
+          document.getElementById('agreeBlock1').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return false;
+        }
+        if (!s) {
+          document.getElementById('agreeBlock2').classList.add('error-highlight');
+          showToast('error', 'Please accept the Service Usage Agreement to continue.');
+          document.getElementById('agreeBlock2').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return false;
+        }
+        return true;
+      }
+
+      // ── AUTH ──
+      const SF_CLIENT_ID = '3MVG9dAEux2v1sLvyErYYusCF2fcXctfRmwja4Cs_U3Om0top3PTjdZtXng.MvkWTvN9lRBCiW.vycRvAfPuW';
+      const SF_REDIRECT  = 'http://localhost:5500/index.html';
+      const SF_LOGIN_URL = 'https://login.salesforce.com';
+
+      let conn = null;
+
+      function parseTokenFromHash() {
+        const hash = window.location.hash.replace(/^#/, '');
+        if (!hash) return null;
+        const p = {};
+        hash.split('&').forEach(pair => {
+          const [k, v] = pair.split('=');
+          p[decodeURIComponent(k)] = decodeURIComponent(v || '');
+        });
+        return p.access_token ? p : null;
+      }
+
+      (function initAuth() {
+        const token = parseTokenFromHash();
+        if (token) {
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+          conn = new jsforce.Connection({ instanceUrl: token.instance_url, accessToken: token.access_token });
+          showToast('success', 'Connected to Salesforce ✓');
+        } else {
+          const authUrl = `${SF_LOGIN_URL}/services/oauth2/authorize?response_type=token&client_id=${encodeURIComponent(SF_CLIENT_ID)}&redirect_uri=${encodeURIComponent(SF_REDIRECT)}`;
+          window.location.href = authUrl;
+        }
+      })();
+
+      // ── LEAD SUBMIT ──
+      document.getElementById('leadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!validateStep(3)) return;
+        if (!validateAgreements()) return;
+        if (!conn) { showToast('error', 'Not authenticated. Please refresh to log in.'); return; }
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        if (!document.getElementById('spinStyle')) {
+          const s = document.createElement('style');
+          s.id = 'spinStyle';
+          s.textContent = '@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }';
+          document.head.appendChild(s);
+        }
+        submitBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 0.8s linear infinite"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Creating Lead…`;
+
+        const leadData = {
+          req: {
+            firstName:   document.getElementById('firstName').value.trim(),
+            lastName:    document.getElementById('lastName').value.trim(),
+            company:     document.getElementById('company').value.trim(),
+            email:       document.getElementById('email').value.trim(),
+            phone:       document.getElementById('phone').value.trim(),
+            mobile:      document.getElementById('mobile').value.trim(),
+            source:      document.getElementById('source').value,
+            industry:    document.getElementById('industry').value,
+            website:     document.getElementById('website').value.trim(),
+            description: document.getElementById('description').value.trim(),
+            city:        document.getElementById('city').value.trim(),
+            country:     document.getElementById('country').value,
+          }
+        };
+
+        try {
+          const result = await conn.apex.post('/v1/CreateLeadExtended/', leadData);
+          window._createdLeadId = result.leadId;
+          document.getElementById('panel' + currentStep).classList.remove('active');
+          ['s1','s2','s3'].forEach(id => { document.getElementById(id).classList.remove('active'); document.getElementById(id).classList.add('done'); });
+          document.getElementById('leadIdBadge').textContent = 'Lead ID: ' + result.leadId;
+          document.getElementById('panelSuccess').classList.add('active');
+          showToast('success', 'Lead created successfully!');
+        } catch (err) {
+          console.error(err);
+          showToast('error', err.message || 'Error creating lead. Please try again.');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Create Lead in Salesforce`;
+        }
+      });
+
+      // ── FILE UPLOAD ──
+      const MAX_FILE_SIZE = 25 * 1024 * 1024;
+      let fileQueue = [];
+
+      function getIconClass(name) {
+        const ext = name.split('.').pop().toLowerCase();
+        if (ext === 'pdf') return 'pdf';
+        if (['doc','docx'].includes(ext)) return 'doc';
+        if (['xls','xlsx','csv'].includes(ext)) return 'xls';
+        if (['png','jpg','jpeg','gif','webp'].includes(ext)) return 'img';
+        return 'other';
+      }
+
+      function getIconLabel(name) {
+        const ext = name.split('.').pop().toUpperCase();
+        return ext.length > 4 ? ext.slice(0,4) : ext;
+      }
+
+      function formatBytes(b) {
+        if (b < 1024) return b + ' B';
+        if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+        return (b/1048576).toFixed(1) + ' MB';
+      }
+
+      function handleFiles(files) {
+        Array.from(files).forEach(file => {
+          if (file.size > MAX_FILE_SIZE) { showToast('error', file.name + ' exceeds 25MB limit'); return; }
+          const id = 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+          const item = { file, id, status: 'pending' };
+          fileQueue.push(item);
+          renderFileItem(item);
+        });
+        document.getElementById('fileInput').value = '';
+        updateUploadBtn();
+      }
+
+      function renderFileItem(item) {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        div.id = item.id;
+        div.innerHTML = `
+          <div class="file-icon ${getIconClass(item.file.name)}">${getIconLabel(item.file.name)}</div>
+          <div class="file-info">
+            <div class="file-name">${item.file.name}</div>
+            <div class="file-meta">${formatBytes(item.file.size)}</div>
+            <div class="progress-bar-wrap" id="pbw_${item.id}" style="display:none">
+              <div class="progress-bar" id="pb_${item.id}"></div>
+            </div>
+          </div>
+          <span class="file-status pending" id="fst_${item.id}">Queued</span>
+          <button type="button" class="file-remove" id="frm_${item.id}" onclick="removeFile('${item.id}')" title="Remove">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>`;
+        document.getElementById('fileList').appendChild(div);
+      }
+
+      function removeFile(id) {
+        fileQueue = fileQueue.filter(f => f.id !== id);
+        const el = document.getElementById(id);
+        if (el) el.remove();
+        updateUploadBtn();
+      }
+
+      function updateUploadBtn() {
+        const hasPending = fileQueue.some(f => f.status === 'pending');
+        document.getElementById('uploadBtn').style.display = (fileQueue.length > 0 && hasPending) ? 'inline-flex' : 'none';
+      }
+
+      function setFileStatus(id, status, label) {
+        const item = document.getElementById(id);
+        const st   = document.getElementById('fst_' + id);
+        const rm   = document.getElementById('frm_' + id);
+        const pbw  = document.getElementById('pbw_' + id);
+        const pb   = document.getElementById('pb_' + id);
+        if (!item) return;
+        item.className = 'file-item ' + status;
+        st.className   = 'file-status ' + status;
+        st.textContent = label;
+        if (status === 'uploading') { rm.style.display = 'none'; pbw.style.display = 'block'; }
+        if (status === 'done')  { pb.style.width = '100%'; rm.style.display = 'none'; }
+        if (status === 'error') { rm.style.display = 'flex'; }
+      }
+
+      function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload  = () => resolve(r.result.split(',')[1]);
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+      }
+
+      async function uploadAllFiles() {
+        if (!conn)                  { showToast('error', 'Not connected to Salesforce.'); return; }
+        if (!window._createdLeadId) { showToast('error', 'No Lead ID found.'); return; }
+
+        const btn = document.getElementById('uploadBtn');
+        btn.disabled = true;
+
+        const pending = fileQueue.filter(f => f.status === 'pending');
+        let ok = 0, fail = 0;
+
+        for (const item of pending) {
+          setFileStatus(item.id, 'uploading', 'Uploading…');
+          document.getElementById('pb_' + item.id).style.width = '55%';
+
+          try {
+            const base64Data = await fileToBase64(item.file);
+            await conn.apex.post('/v1/LeadFileUpload/', {
+              req: {
+                leadId:    window._createdLeadId,
+                fileName:  item.file.name,
+                base64Data: base64Data,
+                mimeType:  item.file.type || 'application/octet-stream',
+              }
+            });
+            item.status = 'done';
+            setFileStatus(item.id, 'done', '✓ Uploaded');
+            ok++;
+          } catch (err) {
+            console.error('Upload failed:', item.file.name, err);
+            item.status = 'error';
+            setFileStatus(item.id, 'error', '✕ Failed');
+            fail++;
+          }
+        }
+
+        btn.disabled = false;
+        updateUploadBtn();
+
+        if (ok > 0 && fail === 0) showToast('success', ok + ' file' + (ok > 1 ? 's' : '') + ' uploaded successfully!');
+        else if (fail > 0 && ok === 0) showToast('error', 'All uploads failed. Check console.');
+        else showToast('error', ok + ' uploaded, ' + fail + ' failed.');
+      }
+
+      // Drag & drop
+      const dropZone = document.getElementById('dropZone');
+      dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+      dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        handleFiles(e.dataTransfer.files);
+      });
+    </script>
+  </body>
+</html>
